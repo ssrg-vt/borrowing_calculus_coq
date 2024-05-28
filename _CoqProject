@@ -1,0 +1,15 @@
+-arg "-w -notation-overridden"
+-arg "-w -extraction-reserved-identifier"
+-arg "-w -extraction-opaque-accessed"
+-arg "-w -ambiguous-paths"
+-arg "-w -duplicate-clear"
+-arg "-w +deprecated-hint-without-locality"
+-arg "-w +deprecated-hint-rewrite-without-locality"
+-arg "-w +deprecated-instance-without-locality"
+-arg "-w -hiding-delimiting-key"
+
+-R proofs eBPF_coq
+
+proofs/lang/kind.v
+proofs/lang/type.v
+proofs/lang/expr.v

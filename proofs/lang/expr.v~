@@ -1,0 +1,16 @@
+From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype div ssralg.
+Require Export String ZArith.
+
+
+(* Literals *)
+Inductive lit : Type :=
+| LitInt : Z -> lit
+| LitString : string -> lit.
+
+(* Expressions *)
+Inductive expr : Type := 
+| Var : string -> expr
+| Lit : lit -> expr
+| Lam : string -> expr -> expr (* Lambda x: t. e f(x) = e *).
+
+
