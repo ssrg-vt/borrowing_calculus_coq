@@ -1,0 +1,4 @@
+From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype div ssralg.
+Require Export String ZArith.
+
+Inductive prim_type : Type.
