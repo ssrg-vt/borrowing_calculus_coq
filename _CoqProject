@@ -13,3 +13,4 @@
 proofs/lang/kind.v
 proofs/lang/type.v
 proofs/lang/expr.v
+proofs/lang/typing.v

@@ -8,11 +8,13 @@ Inductive lit : Type :=
 | LitString : string -> lit.
 
 (* Expressions *)
-Inductive expr : Type := 
+Inductive expr {e : Type} : Type := 
 | EVar : string -> expr
 | ELit : lit -> expr
-| ELam : expr -> ty -> expr -> expr (* Lambda x: t. e f(x:t) = e *)
+| ELam : expr -> @ty e -> expr -> expr (* Lambda x: t. e: f(x:t) = e *)
 | EApp : expr -> expr -> expr (* e1 e2 *)
-| ELet : expr -> ty -> expr -> expr -> expr (* let x : t = e1 in e2 *).
+| ELet : expr -> @ty e -> expr -> expr -> expr (* let x : t = e1 in e2 *)
+| EEmpty : expr 
+| ESeq : expr -> expr -> expr (* e1; e2; ... *).
 
 
