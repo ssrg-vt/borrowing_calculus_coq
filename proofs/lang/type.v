@@ -14,7 +14,7 @@ Inductive ty_const : Type :=
 | TyCon2 : string -> kind -> ty_const.
 
 Inductive ty : Type :=
-| TFun : seq (string * ty) -> ty -> ty -> ty (* arg * ty, effect, return ty *)
+| TFun : seq ty -> kind -> ty -> ty (* arg * ty, effect, return ty *)
 | TCon : ty_const -> ty (* primitive, labels or new type *)
 | TVar : ty_var -> ty (* type variables *).
 

@@ -11,8 +11,8 @@ Inductive lit : Type :=
 Inductive expr : Type := 
 | EVar : string -> expr
 | ELit : lit -> expr
-| ELam : expr -> (ty * kind) -> expr -> expr (* Lambda x: t. e f(x:t) = e *)
-| ELapp : expr -> expr -> expr (* e1 e2 *)
-| ELet : expr -> expr -> expr -> expr (* let x = e1 in e2 *).
+| ELam : expr -> ty -> expr -> expr (* Lambda x: t. e f(x:t) = e *)
+| EApp : expr -> expr -> expr (* e1 e2 *)
+| ELet : expr -> ty -> expr -> expr -> expr (* let x : t = e1 in e2 *).
 
 
