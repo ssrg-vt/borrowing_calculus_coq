@@ -12,3 +12,4 @@
 
 proofs/lang/type.v
 proofs/lang/expr.v
+proofs/lang/typing_proofs.v
