@@ -14,7 +14,7 @@ Inductive qual : Type :=
 | un : qual.
 
 Inductive subqual : qual -> qual -> Prop :=
-| q_relf : forall q q', subqual q q'
+| q_refl : forall q q', subqual q q'
 | q_linun : subqual lin un 
 | q_trans : forall q q' q'',
             subqual q q' ->
@@ -22,10 +22,18 @@ Inductive subqual : qual -> qual -> Prop :=
             subqual q q''.
 
 (* Types *)
-Inductive ty : Type := 
-| bool_ty : ty
-| pair_ty : ty -> ty -> ty
-| arrow_ty : ty -> ty -> ty.
+Inductive pty : Type := 
+| bool_ty : pty
+| pair_ty : ty -> ty -> pty
+| arrow_ty : ty -> ty -> pty
+
+with ty : Type :=
+| qty : qual -> pty -> ty.
+
+Definition extract_qual (t : ty) := 
+match t with
+| qty q t => q
+end.
 
 (* Typing enviornment: Maps variable names to their type *)
 Module M := FMapAVL.Make String_as_OT.
@@ -34,18 +42,18 @@ Module F := P.F.
 
 (* Map from string to type: Map is build using a AVL tree for fast operations *)
 (* Here ty (representing type is the value type) and string is the key *)
-Definition typing_context := M.t (qual * ty). 
+Definition typing_context := M.t ty. 
 
-Definition empty_typing_context := (M.empty (qual * ty)).
+Definition empty_typing_context := (M.empty ty).
 
-Fixpoint add_keys_vals (ks : list (M.Raw.key*(qual * ty))) (c1 : M.Raw.tree (qual * ty)) 
-: M.Raw.tree (qual * ty) :=
+Fixpoint add_keys_vals (ks : list (M.Raw.key*ty)) (c1 : M.Raw.tree ty) 
+: M.Raw.tree ty :=
 match ks with 
 | [::] => c1
 | k :: ks => add_keys_vals ks (M.Raw.add k.1 k.2 c1)
 end.
 
-Definition add_raw_context (c1 : M.Raw.tree (qual * ty)) (c2 : M.Raw.tree (qual * ty)) : M.Raw.tree (qual * ty) :=
+Definition add_raw_context (c1 : M.Raw.tree ty) (c2 : M.Raw.tree ty) : M.Raw.tree ty :=
 let ks := M.Raw.elements_aux [::] c1 in
 add_keys_vals ks c2.
 
@@ -64,22 +72,23 @@ Inductive context_split : typing_context -> typing_context -> typing_context -> 
 | m_empty : context_split empty_typing_context empty_typing_context empty_typing_context
 | m_un : forall Gamma Gamma1 Gamma2 x t,
          context_split Gamma1 Gamma2 Gamma ->
-         context_split (M.add x (un, t) Gamma1) (M.add x (un,t) Gamma2) (M.add x (un,t) Gamma)
+         context_split (M.add x (qty un t) Gamma1) (M.add x (qty un t) Gamma2) 
+         (M.add x (qty un t) Gamma)
 | m_lin1 : forall Gamma Gamma1 Gamma2 x t,
            context_split Gamma1 Gamma2 Gamma ->
-           context_split (M.add x (lin, t) Gamma1) Gamma2 (M.add x (lin, t) Gamma)
+           context_split (M.add x (qty lin t) Gamma1) Gamma2 (M.add x (qty lin t) Gamma)
 | m_lin2 : forall Gamma Gamma1 Gamma2 x t,
            context_split Gamma1 Gamma2 Gamma ->
-           context_split Gamma1 (M.add x (lin, t) Gamma2) (M.add x (lin, t) Gamma).
+           context_split Gamma1 (M.add x (qty lin t) Gamma2) (M.add x (qty lin t) Gamma).
 
 (* Predicate over types *)
 (* Unrestricted data strutures may not contain linear data structures *)
 (* un <x, y> should not contain any variable of qualifier lin *)
 (* Linear data structures can hold objects with linear or unrestricted type, 
    but unrestricted data structures can only hold objects with unrestricted type. *)
-Inductive pred_ty : qual -> (qual * ty) -> Prop :=
+Inductive pred_ty : qual -> ty -> Prop :=
 | predt : forall T q t q',
-          T = (q', t) ->
+          T = (qty q' t) ->
           subqual q q' ->
           pred_ty q T.
 
