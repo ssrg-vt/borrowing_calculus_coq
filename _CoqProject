@@ -10,6 +10,7 @@
 
 -R proofs eBPF_coq
 
+proofs/lang/type_nt.v
+proofs/lang/expr_nt.v
+proofs/lang/typing_proofs_nt.v
 proofs/lang/type.v
-proofs/lang/expr.v
-proofs/lang/typing_proofs.v

@@ -1,5 +1,5 @@
 From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype div ssralg seq.
-Require Import String ZArith type Coq.Structures.OrderedTypeEx type expr.
+Require Import String ZArith Coq.Structures.OrderedTypeEx type_nt expr_nt.
 
 (* The predicate over Gamma is not affected by adding unrestricted variables *)
 Lemma pred_context_q : forall q Gamma x t,
@@ -41,12 +41,6 @@ Lemma exchange2 : forall Gamma1 x1 x2 t1 t2 e t,
 ty_expr (M.add x2 t2 (M.add x1 t1 Gamma1)) e t ->
 ty_expr (M.add x1 t1 (M.add x2 t2 Gamma1)) e t.
 Proof. 
-move=> Gamma1 x1 x2 t1 t2 e t h. induction h.
-(* var *)
-+ admit.
-(* bool *) 
-+ apply ty_bool with (Gamma := (M.add x1 t1 (M.add x2 t2 Gamma1))). 
-  inversion H; subst.
 Admitted.
 
 (* Unrestricted weakening: Adding unrestricted variables to the context, does not prevent a term from type checking.*)
