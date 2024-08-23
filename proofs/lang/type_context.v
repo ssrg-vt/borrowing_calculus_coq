@@ -44,7 +44,7 @@ Module F := P.F.
 (* Here ty (representing type is the value type) and string is the key *)
 Definition typing_context := M.t ty. 
 
-Definition empty_typing_context := (M.empty ty).
+Definition empty_context := (M.empty ty).
 
 Fixpoint add_keys_vals (ks : list (M.Raw.key*ty)) (c1 : M.Raw.tree ty) 
 : M.Raw.tree ty :=
@@ -69,7 +69,7 @@ Definition merge_context (t1 : typing_context) (t2 : typing_context) : typing_co
 (* Context Split *)
 (* Describes how to split a single context into two context that will be used to type different subterms *)
 Inductive context_split : typing_context -> typing_context -> typing_context -> Prop :=
-| m_empty : context_split empty_typing_context empty_typing_context empty_typing_context
+| m_empty : context_split empty_context empty_context empty_context
 | m_un : forall Gamma Gamma1 Gamma2 x t,
          context_split Gamma1 Gamma2 Gamma ->
          context_split (M.add x (qty un t) Gamma1) (M.add x (qty un t) Gamma2) 
@@ -97,3 +97,19 @@ Inductive pred_context : qual -> typing_context -> Prop :=
           M.find x Gamma = Some T ->
           pred_ty q T ->
           pred_context q Gamma. 
+
+
+(***** Deterministic Type System ******)
+
+(* Context Diff *) 
+(* Describes how to compute the rest of the context for the next subterm *)
+Inductive context_diff : typing_context -> typing_context -> typing_context -> Prop :=
+| d_empty : forall Gamma, context_diff Gamma empty_context Gamma
+| d_lin : forall Gamma1 Gamma2 Gamma3 x t,
+          context_diff Gamma1 Gamma2 Gamma3 ->
+          List.In (x, qty lin t) (M.Raw.elements_aux [::] (M.this Gamma3)) = false  ->
+          context_diff Gamma1 (M.add x (qty lin t) Gamma2) Gamma3
+| d_un : forall Gamma1 Gamma2 Gamma3 Gamma4 Gamma5 x t,
+         context_diff Gamma1 Gamma2 Gamma3 ->
+         merge_context (M.add x (qty un t) Gamma4) Gamma5 = Gamma3-> 
+         context_diff Gamma1 (M.add x (qty lin t) Gamma2) (merge_context Gamma4 Gamma5).

@@ -20,6 +20,7 @@ _build
 *.native
 a.out
 .DS_Store
+.\#*
 
 Makefile.coq
 Makefile.coq.bak
