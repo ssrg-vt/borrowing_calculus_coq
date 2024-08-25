@@ -15,7 +15,7 @@ Lemma add_exchange2 : forall Gamma1 x1 x2 t1 t2 e t Gamma2,
 x1 <> x2 ->
 ty_expr (M.add x2 t2 (M.add x1 t1 Gamma1)) e t Gamma2 ->
 exists Gamma3, ty_expr (M.add x1 t1 (M.add x2 t2 Gamma1)) e t Gamma3 /\ Gamma3 = Gamma2. 
-Proof. 
+Proof.
 Admitted.
 
 Lemma add_exchange3 : forall Gamma1 y yt x1 x2 t1 t2 e t Gamma2,

@@ -90,6 +90,124 @@ Inductive ty_expr : typing_context -> expr -> ty -> typing_context -> Prop :=
            ty_expr Gamma1 e1 (qty q (arrow_ty T1 T2)) Gamma2 ->
            ty_expr Gamma2 e2 T1 Gamma3 ->
            ty_expr Gamma1 (app_expr e1 e2) T2 Gamma3.
+
+(***** Operational Semantics *****)
+Inductive prevalue : Type :=
+| bool_val : bool -> prevalue
+| pair_val : expr -> expr -> prevalue
+| abs_val : string -> ty -> expr -> prevalue.
+
+Definition value : Type := (qual * prevalue).
+
+(* ??? *)
+Inductive ty_value : typing_context -> qual -> prevalue -> ty -> Prop :=
+| ty_bool_val : forall Gamma q b,
+                ty_expr Gamma (bool_expr q b) (qty q bool_ty) Gamma ->
+                ty_value Gamma q (bool_val b) (qty q bool_ty)
+| ty_pair_val : forall Gamma Gamma' q e1 e2 T1 T2,
+                ty_expr Gamma (pair_expr q e1 e2) (qty q (pair_ty T1 T2)) Gamma' ->
+                ty_value Gamma q (pair_val e1 e2) (qty q (pair_ty T1 T2))
+| ty_abs_val : forall Gamma Gamma' q x T1 T2 e,
+               ty_expr Gamma (abs_expr q x T1 e) (qty q (arrow_ty T1 T2)) (M.remove x Gamma') ->
+               ty_value Gamma q (abs_val x T1 e) (qty q (arrow_ty T1 T2)).
+                
+(* Map from string to values *)
+Definition state := M.t value. 
+
+Definition empty_state := (M.empty value).
+
+Fixpoint add_vars_vals (ks : list (M.Raw.key*value)) (c1 : M.Raw.tree value) 
+: M.Raw.tree value :=
+match ks with 
+| [::] => c1
+| k :: ks => add_vars_vals ks (M.Raw.add k.1 k.2 c1)
+end.
+
+Definition add_raw_state (c1 : M.Raw.tree value) (c2 : M.Raw.tree value) : M.Raw.tree value :=
+let ks := M.Raw.elements_aux [::] c1 in
+add_vars_vals ks c2.
+
+Lemma merge_state_prop : forall t1 t2,
+M.Raw.bst (add_raw_state (M.this t1) (M.this t2)).
+Proof.
+Admitted.
+
+Definition merge_state (t1 : state) (t2 : state) : state
+:= {| M.this := add_raw_state (M.this t1) (M.this t2); 
+      M.is_bst := merge_state_prop t1 t2 |}. 
+
+(* Auxiliary function *)
+(* To justify how unrestricted and linear variables are allocated and deallocated *)
+Inductive qual_state_rel : state -> qual -> string -> state -> Prop :=
+(* it ensures that the updated state does not contain the linear variable as it will
+   be deallocated after its use *)
+| state_qual_lin : forall s1 x v s2,
+                   qual_state_rel (merge_state s1 (M.add x v s2)) 
+                                  lin x (merge_state s1 s2)
+(* it ensures that if the variable is unrestricted the updated state remains the same
+   as it is not deallocated *)
+| state_qual_un : forall s x,
+                  qual_state_rel s un x s.
+
+(* Substitution *)
+Fixpoint subst (x : string) (e' : expr) (e : expr) : expr :=
+match e with 
+| var_expr y => if String.eqb x y then e' else e 
+| bool_expr q b => bool_expr q b
+| cond_expr e1 e2 e3 => cond_expr (subst x e' e1) (subst x e' e2) (subst x e' e3)
+| pair_expr q e1 e2 => pair_expr q (subst x e' e1) (subst x e' e2)
+| split_expr e1 e2 e3 e4 => split_expr (subst x e' e1) (subst x e' e2) 
+                            (subst x e' e3) (subst x e' e4)
+| abs_expr q y t e => abs_expr q x t (if String.eqb y x then e else (subst x e' e))
+| app_expr e1 e2 => app_expr (subst x e' e1) (subst x e' e2)
+end.
+
+(* Semantics *)
+Inductive sem_expr : state -> expr -> state -> expr -> Prop :=
+| e_bool : forall s x q b,
+           sem_expr s (bool_expr q b) (M.add x (q, bool_val b) s) (var_expr x)
+| e_if_true : forall s x e2 e3 q s',
+              M.find x s = Some (q, bool_val true) ->
+              qual_state_rel s q x s' ->
+              sem_expr s (cond_expr (var_expr x) e2 e3) s' e2
+| e_if_false : forall s x e2 e3 q s',
+               M.find x s = Some (q, bool_val false) ->
+               qual_state_rel s q x s' ->
+               sem_expr s (cond_expr (var_expr x) e2 e3) s' e3
+| e_pair : forall s x q y z,
+           sem_expr s (pair_expr q y z) (M.add x (q, (pair_val y z)) s) 
+           (var_expr x)
+| e_split : forall s x y z e y1 z1 q s',
+            M.find x s = Some (q, (pair_val y1 z1)) ->
+            qual_state_rel s q x s' ->
+            sem_expr s (split_expr (var_expr x) (var_expr y) (var_expr z) e)
+            s' (subst z z1 (subst y y1 e))
+| e_fun : forall s q x t e,
+          sem_expr s (abs_expr q x t e) (M.add x (q, (abs_val x t e)) s) (var_expr x).
+
+(* ?? *)
+Inductive ty_state : state -> typing_context -> Prop :=
+| ty_emptys : ty_state empty_state empty_context 
+| ty_nextlins : forall Gamma1 Gamma2 Gamma3 s w T x,
+                context_split Gamma1 Gamma2 Gamma3 ->
+                ty_state s Gamma3 ->
+                ty_value Gamma1 lin w T ->
+                ty_state (M.add x (lin, w) s) (M.add x T Gamma2)
+| ty_nextuns : forall Gamma1 Gamma2 Gamma3 s w T x,
+                context_split Gamma1 Gamma2 Gamma3 ->
+                ty_state s Gamma3 ->
+                ty_value Gamma1 un w T ->
+                ty_state (M.add x (un, w) s) (M.add x T Gamma2).
+
+Inductive ty_prog : typing_context -> state -> expr -> Prop :=
+| ty_p : forall Gamma s e T Gamma',
+         ty_state s Gamma ->
+         ty_expr Gamma e T Gamma' ->
+         ty_prog Gamma s e.
+
+
+
+ 
            
 
 
