@@ -1,6 +1,6 @@
 From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype div ssralg seq.
 Require Import String ZArith Coq.FSets.FMapAVL Coq.Structures.OrderedTypeEx.
-Require Import Coq.FSets.FSetProperties Coq.FSets.FMapFacts FMaps FSetAVL.
+Require Import Coq.FSets.FSetProperties Coq.FSets.FMapFacts FMaps FSetAVL Nat PeanoNat Coq.Arith.EqNat. 
 
 (***** Type System ******)
 
@@ -35,51 +35,43 @@ match t with
 | qty q t => q
 end.
 
-(* Typing enviornment: Maps variable names to their type *)
-Module M := FMapAVL.Make String_as_OT.
-Module P := WProperties_fun String_as_OT M.
-Module F := P.F.
-
-(* Map from string to type: Map is build using a AVL tree for fast operations *)
-(* Here ty (representing type is the value type) and string is the key *)
-Definition typing_context := M.t ty. 
-
-Definition empty_context := (M.empty ty).
-
-Fixpoint add_keys_vals (ks : list (M.Raw.key*ty)) (c1 : M.Raw.tree ty) 
-: M.Raw.tree ty :=
-match ks with 
-| [::] => c1
-| k :: ks => add_keys_vals ks (M.Raw.add k.1 k.2 c1)
+Definition eq_qual (q1 q2 : qual) : bool :=
+match q1, q2 with 
+| lin, lin => true 
+| un, un => true 
+| _, _ => false
 end.
 
-Definition add_raw_context (c1 : M.Raw.tree ty) (c2 : M.Raw.tree ty) : M.Raw.tree ty :=
-let ks := M.Raw.elements_aux [::] c1 in
-add_keys_vals ks c2.
+Fixpoint eq_pty (p1 p2 : pty) : bool := 
+match p1, p2 with 
+| bool_ty, bool_ty => true 
+| pair_ty t1 t2, pair_ty t3 t4 => eq_ty t1 t3 && eq_ty t2 t4 
+| arrow_ty t1 t2, arrow_ty t3 t4 => eq_ty t1 t3 && eq_ty t2 t4
+| _, _ => false
+end
+with eq_ty (t1 t2 : ty) : bool :=
+match t1, t2 with 
+| qty q1 t1, qty q2 t2 => if eq_qual q1 q2 then eq_pty t1 t2 else false 
+end.
 
-Lemma merge_context_prop : forall t1 t2,
-M.Raw.bst (add_raw_context (M.this t1) (M.this t2)).
-Proof.
-Admitted.
-
-Definition merge_context (t1 : typing_context) (t2 : typing_context) : typing_context
-:= {| M.this := add_raw_context (M.this t1) (M.this t2); 
-      M.is_bst := merge_context_prop t1 t2 |}. 
+(* Map from string to type *)
+(* Here ty (representing type is the value type) and string is the key *)
+Definition typing_context := list (string * ty). 
 
 (* Context Split *)
 (* Describes how to split a single context into two context that will be used to type different subterms *)
 Inductive context_split : typing_context -> typing_context -> typing_context -> Prop :=
-| m_empty : context_split empty_context empty_context empty_context
+| m_empty : context_split nil nil nil
 | m_un : forall Gamma Gamma1 Gamma2 x t,
          context_split Gamma1 Gamma2 Gamma ->
-         context_split (M.add x (qty un t) Gamma1) (M.add x (qty un t) Gamma2) 
-         (M.add x (qty un t) Gamma)
+         context_split (Gamma1 ++ [:: (x, (qty un t))]) (Gamma2 ++ [:: (x, (qty un t))]) 
+         (Gamma ++ [:: (x, (qty un t))])
 | m_lin1 : forall Gamma Gamma1 Gamma2 x t,
            context_split Gamma1 Gamma2 Gamma ->
-           context_split (M.add x (qty lin t) Gamma1) Gamma2 (M.add x (qty lin t) Gamma)
+           context_split (Gamma1 ++ [:: (x, (qty lin t))]) Gamma2 (Gamma ++ [:: (x, (qty lin t))])
 | m_lin2 : forall Gamma Gamma1 Gamma2 x t,
            context_split Gamma1 Gamma2 Gamma ->
-           context_split Gamma1 (M.add x (qty lin t) Gamma2) (M.add x (qty lin t) Gamma).
+           context_split Gamma1 (Gamma2 ++ [:: (x, (qty lin t))]) (Gamma ++ [:: (x, (qty lin t))]).
 
 (* Predicate over types *)
 (* Unrestricted data strutures may not contain linear data structures *)
@@ -94,7 +86,7 @@ Inductive pred_ty : qual -> ty -> Prop :=
 
 Inductive pred_context : qual -> typing_context -> Prop :=
 | predc : forall q x Gamma T,
-          M.find x Gamma = Some T ->
+          List.In (x, T) Gamma ->
           pred_ty q T ->
           pred_context q Gamma. 
 
@@ -104,13 +96,22 @@ Inductive pred_context : qual -> typing_context -> Prop :=
 (* Context Diff *) 
 (* Describes how to compute the rest of the context for the next subterm *)
 Inductive context_diff : typing_context -> typing_context -> typing_context -> Prop :=
-| d_empty : forall Gamma, context_diff Gamma empty_context Gamma
+| d_empty : forall Gamma, context_diff Gamma nil Gamma
 | d_lin : forall Gamma1 Gamma2 Gamma3 x t,
           context_diff Gamma1 Gamma2 Gamma3 ->
-          List.In (x, qty lin t) (M.Raw.elements_aux [::] (M.this Gamma3)) = false  ->
-          context_diff Gamma1 (M.add x (qty lin t) Gamma2) Gamma3
+          List.In (x, qty lin t) Gamma3 = false  ->
+          context_diff Gamma1 (Gamma2 ++ [:: (x, (qty lin t))]) Gamma3
 | d_un : forall Gamma1 Gamma2 Gamma3 Gamma4 Gamma5 x t,
          context_diff Gamma1 Gamma2 Gamma3 ->
-         merge_context (M.add x (qty un t) Gamma4) Gamma5 = Gamma3-> 
-         context_diff Gamma1 (M.add x (qty lin t) Gamma2) (merge_context Gamma4 Gamma5).
+         Gamma3 = Gamma4 ++ [:: (x, qty un t)] ++ Gamma5 ->
+         context_diff Gamma1 (Gamma2 ++ [:: (x, (qty lin t))]) (Gamma4 ++ Gamma5).
 
+Definition eq_string_ty (s : string * ty) (s' : string * ty) : bool :=
+if (String.eqb s.1 s'.1) && (eq_ty s.2 s'.2) then true else false.
+
+
+Fixpoint remove_var_ty (t : typing_context) (k : string * ty): typing_context :=
+match t with 
+| nil => nil 
+| x :: xs => if (eq_string_ty k x) then xs else x :: remove_var_ty xs k
+end.

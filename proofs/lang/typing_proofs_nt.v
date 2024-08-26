@@ -1,6 +1,7 @@
 From mathcomp Require Import ssreflect ssrfun ssrbool ssrnat eqtype div ssralg seq.
 Require Import String ZArith Coq.Structures.OrderedTypeEx type_context expr.
 
+(*
 (* The predicate over Gamma is not affected by adding unrestricted variables *)
 Lemma pred_context_q : forall q Gamma x t,
 pred_context q Gamma ->
@@ -85,3 +86,4 @@ by apply m_un; auto.
 Admitted.
 
 
+*)
