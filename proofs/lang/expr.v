@@ -12,12 +12,12 @@ Inductive expr : Type :=
 | app_expr : expr -> expr -> expr.                  (* e1 e2 *)
 
 
-(**** Non-deterministic Typing rules ****) Check List.partition.
+(**** Non-deterministic Typing rules ****) 
 Inductive ty_expr_nt : typing_context -> expr -> ty -> Prop :=
 (* No linear variable is discarded without being used *)
 | ty_var_nt : forall x T Gamma1 Gamma2, 
               pred_context un (Gamma1 ++ Gamma2) ->
-              ty_expr_nt (Gamma1 ++ [::(x, T)] ++ Gamma2) (var_expr x) T
+              ty_expr_nt (append_context (extend_context Gamma1 x T) Gamma2) (var_expr x) T
 | ty_bool_nt : forall q b Gamma,
                pred_context un Gamma ->
                ty_expr_nt Gamma (bool_expr q b) (qty q bool_ty)
@@ -31,7 +31,7 @@ Inductive ty_expr_nt : typing_context -> expr -> ty -> Prop :=
                ty_expr_nt Gamma1 e1 (qty q bool_ty) ->
                ty_expr_nt Gamma2 e2 T ->
                ty_expr_nt Gamma2 e3 T ->
-               context_diff Gamma1 Gamma2 Gamma3 ->
+               context_split Gamma1 Gamma2 Gamma3 ->
                ty_expr_nt Gamma3 (cond_expr e1 e2 e3) T
 | ty_pair_nt : forall Gamma1 Gamma2 Gamma3 e1 e2 T1 T2 q,
                ty_expr_nt Gamma1 e1 T1 ->
@@ -42,12 +42,12 @@ Inductive ty_expr_nt : typing_context -> expr -> ty -> Prop :=
                ty_expr_nt Gamma3 (pair_expr q e1 e2) (qty q (pair_ty T1 T2))
 | ty_split_nt : forall Gamma1 Gamma2 Gamma3 q e1 t1 t2 x y T1 T2 e2 T,
                 ty_expr_nt Gamma1 e1 (qty q (pair_ty t1 t2)) ->
-                ty_expr_nt (Gamma2 ++ [:: (x, T1)] ++ [:: (y, T2)]) e2 T ->
+                ty_expr_nt (extend_context (extend_context Gamma2 x T1) y T2) e2 T ->
                 context_split Gamma1 Gamma2 Gamma3 ->
                 ty_expr_nt Gamma3 (split_expr e1 (var_expr x) (var_expr y) e2) T 
 | ty_abs_nt : forall x e q Gamma T1 T2,
               pred_context q Gamma -> 
-              ty_expr_nt (Gamma ++ [:: (x, T1)]) e T2 ->
+              ty_expr_nt (extend_context Gamma x T1) e T2 ->
               ty_expr_nt Gamma (abs_expr q x T1 e) (qty q (arrow_ty T1 T2))
 | ty_app_nt : forall e1 e2 Gamma1 Gamma2 Gamma3 T1 T2 q,
               ty_expr_nt Gamma1 e1 (qty q (arrow_ty T1 T2)) ->
@@ -59,11 +59,11 @@ Inductive ty_expr_nt : typing_context -> expr -> ty -> Prop :=
 (* The relation also returns left-over context along with the type *) 
 Inductive ty_expr : typing_context -> expr -> ty -> typing_context -> Prop :=
 | ty_uvar : forall x T Gamma1 Gamma2, 
-           ty_expr (Gamma1 ++ [:: (x, (qty un T))] ++ Gamma2) (var_expr x) (qty un T) 
-           (Gamma1 ++ [:: (x, (qty un T))] ++ Gamma2)
+           ty_expr (append_context (extend_context Gamma1 x (qty un T)) Gamma2) (var_expr x) (qty un T) 
+           (append_context (extend_context Gamma1 x (qty un T)) Gamma2)
 | ty_lvar : forall x T Gamma1 Gamma2, 
-           ty_expr (Gamma1 ++ [:: (x, (qty lin T))] ++ Gamma2) (var_expr x) (qty lin T) 
-           (Gamma1 ++ Gamma2)
+           ty_expr (append_context (extend_context Gamma1 x (qty lin T)) Gamma2) (var_expr x) (qty lin T) 
+           (append_context Gamma1 Gamma2)
 | ty_bool : forall q b Gamma,
             ty_expr Gamma (bool_expr q b) (qty q bool_ty) Gamma
 | ty_cond : forall e1 q e2 e3 Gamma1 Gamma2 Gamma3 T,
@@ -79,13 +79,13 @@ Inductive ty_expr : typing_context -> expr -> ty -> typing_context -> Prop :=
             ty_expr Gamma1 (pair_expr q e1 e2) (qty q (pair_ty T1 T2)) Gamma3
 | ty_split : forall Gamma1 Gamma2 Gamma3 q e1 t1 t2 x y T1 T2 e2 T,
              ty_expr Gamma1 e1 (qty q (pair_ty t1 t2)) Gamma2 ->
-             ty_expr (Gamma2 ++ [:: (x, T1)] ++ [:: (y, T2)]) e2 T Gamma3 ->
+             ty_expr (extend_context (extend_context Gamma2 x T1) y T2) e2 T Gamma3 ->
              ty_expr Gamma1 (split_expr e1 (var_expr x) (var_expr y) e2) T 
-             (remove_var_ty (remove_var_ty Gamma3 (x, T1)) (y, T2))
+             (remove_var_ty (remove_var_ty Gamma3 x T1) y T2)
 | ty_abs : forall x e q Gamma1 Gamma2 T1 T2,
-           (q = un -> Gamma1 = remove_var_ty Gamma2 (x, T1)) ->
-           ty_expr (Gamma1 ++ [:: (x, T1)]) e T2 Gamma2 ->
-           ty_expr Gamma1 (abs_expr q x T1 e) (qty q (arrow_ty T1 T2)) (remove_var_ty Gamma2 (x, T1))
+           (q = un -> Gamma1 = remove_var_ty Gamma2 x T1) ->
+           ty_expr (extend_context Gamma1 x T1) e T2 Gamma2 ->
+           ty_expr Gamma1 (abs_expr q x T1 e) (qty q (arrow_ty T1 T2)) (remove_var_ty Gamma2 x T1)
 | ty_app : forall e1 e2 Gamma1 Gamma2 Gamma3 T1 T2 q,
            ty_expr Gamma1 e1 (qty q (arrow_ty T1 T2)) Gamma2 ->
            ty_expr Gamma2 e2 T1 Gamma3 ->
@@ -108,11 +108,23 @@ Inductive ty_value : typing_context -> qual -> prevalue -> ty -> Prop :=
                 ty_expr Gamma (pair_expr q e1 e2) (qty q (pair_ty T1 T2)) Gamma' ->
                 ty_value Gamma q (pair_val e1 e2) (qty q (pair_ty T1 T2))
 | ty_abs_val : forall Gamma Gamma' q x T1 T2 e,
-               ty_expr Gamma (abs_expr q x T1 e) (qty q (arrow_ty T1 T2)) (remove_var_ty Gamma' (x, T1)) ->
+               ty_expr Gamma (abs_expr q x T1 e) (qty q (arrow_ty T1 T2)) (remove_var_ty Gamma' x T1) ->
                ty_value Gamma q (abs_val x T1 e) (qty q (arrow_ty T1 T2)).
                 
 (* Map from string to values *)
 Definition state := list (string * value). 
+
+Fixpoint extend_state (t : state) (k : string) (v : value) : state := 
+match t with 
+| nil => [:: (k, v)]
+| h :: t => if (String.eqb k h.1) then (k, v) :: t else h :: extend_state t k v
+end. 
+
+Fixpoint append_state (t1 : state) (t2 : state) : state :=
+match t2 with 
+| nil => t1
+| h :: t =>  append_state (extend_state t1 h.1 h.2) t
+end.
 
 (* Auxiliary function *)
 (* To justify how unrestricted and linear variables are allocated and deallocated *)
@@ -143,7 +155,7 @@ end.
 (* Semantics *)
 Inductive sem_expr : state -> expr -> state -> expr -> Prop :=
 | e_bool : forall s x q b,
-           sem_expr s (bool_expr q b) (s ++ [:: (x, (q, bool_val b))]) (var_expr x)
+           sem_expr s (bool_expr q b) (extend_state s x (q, bool_val b)) (var_expr x)
 | e_if_true : forall (s: state) x e2 e3 q s',
               List.In (x,(q, bool_val true)) s ->
               qual_state_rel s q x s' ->
@@ -153,7 +165,7 @@ Inductive sem_expr : state -> expr -> state -> expr -> Prop :=
                qual_state_rel s q x s' ->
                sem_expr s (cond_expr (var_expr x) e2 e3) s' e3
 | e_pair : forall s x q y z,
-           sem_expr s (pair_expr q y z) (s ++ [:: (x, (q, (pair_val y z)))]) 
+           sem_expr s (pair_expr q y z) (extend_state s x (q, (pair_val y z))) 
            (var_expr x)
 | e_split : forall s x y z e y1 z1 q s',
             List.In (x, (q, (pair_val y1 z1))) s ->
@@ -161,7 +173,7 @@ Inductive sem_expr : state -> expr -> state -> expr -> Prop :=
             sem_expr s (split_expr (var_expr x) (var_expr y) (var_expr z) e)
             s' (subst z z1 (subst y y1 e))
 | e_fun : forall s q x t e,
-          sem_expr s (abs_expr q x t e) (s ++ [:: (x, (q, (abs_val x t e)))]) (var_expr x).
+          sem_expr s (abs_expr q x t e) (extend_state s x (q, (abs_val x t e))) (var_expr x).
 
 (* ?? *)
 Inductive ty_state : state -> typing_context -> Prop :=
@@ -170,12 +182,12 @@ Inductive ty_state : state -> typing_context -> Prop :=
                 context_split Gamma1 Gamma2 Gamma3 ->
                 ty_state s Gamma3 ->
                 ty_value Gamma1 lin w T ->
-                ty_state (s ++ [:: (x, (lin, w))]) (Gamma2 ++ [:: (x, T)])
+                ty_state (extend_state s x (lin, w)) (extend_context Gamma2 x T)
 | ty_nextuns : forall Gamma1 Gamma2 Gamma3 s w T x,
                 context_split Gamma1 Gamma2 Gamma3 ->
                 ty_state s Gamma3 ->
                 ty_value Gamma1 un w T ->
-                ty_state (s ++ [:: (x, (un, w))]) (Gamma2 ++ [:: (x, T)]).
+                ty_state (extend_state s x (un, w)) (extend_context Gamma2 x T).
 
 Inductive ty_prog : typing_context -> state -> expr -> Prop :=
 | ty_p : forall Gamma s e T Gamma',

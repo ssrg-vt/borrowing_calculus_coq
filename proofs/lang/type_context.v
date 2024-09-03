@@ -58,20 +58,116 @@ end.
 (* Here ty (representing type is the value type) and string is the key *)
 Definition typing_context := list (string * ty). 
 
+Definition eq_string_ty (s : string * ty) (s' : string * ty) : bool :=
+if (String.eqb s.1 s'.1) && (eq_ty s.2 s'.2) then true else false.
+
+
+Fixpoint remove_var_ty (t : typing_context) (k : string) (T : ty) : typing_context :=
+match t with 
+| nil => nil 
+| x :: xs => if (String.eqb k x.1 && eq_ty T x.2) then xs else x :: remove_var_ty xs k T
+end.
+
+Fixpoint is_mem (k : string) (t : typing_context) : bool :=
+match t with 
+| nil => false
+| x :: xs => if (String.eqb k x.1) then true else is_mem k xs
+end.
+
+Fixpoint extend_context (t : typing_context) (k : string) (v : ty) : typing_context := 
+match t with 
+| nil => [:: (k, v)]
+| h :: t => if (String.eqb k h.1) then (k, v) :: t else h :: extend_context t k v
+end. 
+
+Fixpoint append_context (t1 : typing_context) (t2 : typing_context) : typing_context :=
+match t2 with 
+| nil => t1
+| h :: t =>  append_context (extend_context t1 h.1 h.2) t
+end.
+
+Fixpoint subset (t1 : typing_context) (t2 : typing_context) : bool :=
+match t1 with 
+| nil => true 
+| h :: t => if is_mem h.1 t2 then subset t t2 else false
+end.
+
+Definition check_unrestricted_ty (t : ty) : bool :=
+match t with 
+| qty un p => true 
+| qty lin p => false
+end.
+
+Definition check_linear_ty (t : ty) : bool :=
+match t with 
+| qty un p => false 
+| qty lin p => true
+end.
+ 
+Fixpoint unrestricted_part (Gamma : typing_context) : typing_context :=
+match Gamma with 
+| nil => nil
+| t :: ts => if (check_unrestricted_ty t.2) then t :: unrestricted_part ts else unrestricted_part ts
+end.
+
+Fixpoint linear_part (Gamma : typing_context) : typing_context :=
+match Gamma with 
+| nil => nil
+| t :: ts => if (check_linear_ty t.2) then t :: linear_part ts else linear_part ts
+end.
+
+Lemma unrestricted_cat : forall Gamma1 Gamma2, 
+unrestricted_part (Gamma1 ++ Gamma2) = unrestricted_part Gamma1 ++ unrestricted_part Gamma2.
+Proof.
+induction Gamma1 as [ | h t IH]; simpl; auto. move=> Gamma2.
+case: ifP=> //= hc. by rewrite IH.
+Qed.
+
+Lemma linear_cat : forall Gamma1 Gamma2, 
+linear_part (Gamma1 ++ Gamma2) = linear_part Gamma1 ++ linear_part Gamma2.
+Proof.
+induction Gamma1 as [ | h t IH]; simpl; auto. move=> Gamma2.
+case: ifP=> //= hc. by rewrite IH.
+Qed.
+
+Lemma unrestricted_tail : forall x T Gamma,
+unrestricted_part ((x, qty lin T) :: Gamma) = unrestricted_part Gamma.
+Proof.
+by induction Gamma as [ | h t IH]; simpl; auto.
+Qed.
+
+Lemma linear_tail : forall x T Gamma,
+linear_part ((x, qty un T) :: Gamma) = linear_part Gamma.
+Proof.
+by induction Gamma as [ | h t IH]; simpl; auto.
+Qed.
+
+Lemma subset_tail : forall h t1 t2,
+subset t1 t2 ->
+subset (h :: t1) (h :: t2).
+Proof.
+Admitted.
+
+Lemma subset_refl : forall Gamma,
+subset Gamma Gamma = true.
+Proof.
+intros. induction Gamma as [ | h t IH]; auto.
+Admitted.
+
 (* Context Split *)
 (* Describes how to split a single context into two context that will be used to type different subterms *)
 Inductive context_split : typing_context -> typing_context -> typing_context -> Prop :=
 | m_empty : context_split nil nil nil
 | m_un : forall Gamma Gamma1 Gamma2 x t,
          context_split Gamma1 Gamma2 Gamma ->
-         context_split (Gamma1 ++ [:: (x, (qty un t))]) (Gamma2 ++ [:: (x, (qty un t))]) 
-         (Gamma ++ [:: (x, (qty un t))])
+         context_split (extend_context Gamma1 x (qty un t)) (extend_context Gamma2 x (qty un t))
+         (extend_context Gamma x (qty un t))
 | m_lin1 : forall Gamma Gamma1 Gamma2 x t,
            context_split Gamma1 Gamma2 Gamma ->
-           context_split (Gamma1 ++ [:: (x, (qty lin t))]) Gamma2 (Gamma ++ [:: (x, (qty lin t))])
+           context_split (extend_context Gamma1 x (qty lin t)) Gamma2 (extend_context Gamma x (qty lin t))
 | m_lin2 : forall Gamma Gamma1 Gamma2 x t,
            context_split Gamma1 Gamma2 Gamma ->
-           context_split Gamma1 (Gamma2 ++ [:: (x, (qty lin t))]) (Gamma ++ [:: (x, (qty lin t))]).
+           context_split Gamma1 (extend_context Gamma2 x (qty lin t)) (extend_context Gamma x (qty lin t)).
 
 (* Predicate over types *)
 (* Unrestricted data strutures may not contain linear data structures *)
@@ -100,18 +196,9 @@ Inductive context_diff : typing_context -> typing_context -> typing_context -> P
 | d_lin : forall Gamma1 Gamma2 Gamma3 x t,
           context_diff Gamma1 Gamma2 Gamma3 ->
           List.In (x, qty lin t) Gamma3 = false  ->
-          context_diff Gamma1 (Gamma2 ++ [:: (x, (qty lin t))]) Gamma3
+          context_diff Gamma1 (extend_context Gamma2 x (qty lin t)) Gamma3
 | d_un : forall Gamma1 Gamma2 Gamma3 Gamma4 Gamma5 x t,
          context_diff Gamma1 Gamma2 Gamma3 ->
-         Gamma3 = Gamma4 ++ [:: (x, qty un t)] ++ Gamma5 ->
-         context_diff Gamma1 (Gamma2 ++ [:: (x, (qty lin t))]) (Gamma4 ++ Gamma5).
+         Gamma3 = append_context (extend_context Gamma4 x (qty un t)) Gamma5 ->
+         context_diff Gamma1 (extend_context Gamma2 x (qty lin t)) (append_context Gamma4 Gamma5).
 
-Definition eq_string_ty (s : string * ty) (s' : string * ty) : bool :=
-if (String.eqb s.1 s'.1) && (eq_ty s.2 s'.2) then true else false.
-
-
-Fixpoint remove_var_ty (t : typing_context) (k : string * ty): typing_context :=
-match t with 
-| nil => nil 
-| x :: xs => if (eq_string_ty k x) then xs else x :: remove_var_ty xs k
-end.
