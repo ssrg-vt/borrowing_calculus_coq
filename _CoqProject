@@ -12,5 +12,6 @@
 
 proofs/lang/type_context.v
 proofs/lang/expr.v
+proofs/lang/type_context_facts.v
 proofs/lang/typing_proofs_nt.v
 proofs/lang/typing_proofs.v

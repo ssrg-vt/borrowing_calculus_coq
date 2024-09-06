@@ -201,4 +201,3 @@ Inductive context_diff : typing_context -> typing_context -> typing_context -> P
          context_diff Gamma1 Gamma2 Gamma3 ->
          Gamma3 = append_context (extend_context Gamma4 x (qty un t)) Gamma5 ->
          context_diff Gamma1 (extend_context Gamma2 x (qty lin t)) (append_context Gamma4 Gamma5).
-

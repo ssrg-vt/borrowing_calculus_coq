@@ -199,5 +199,3 @@ Inductive ty_prog : typing_context -> state -> expr -> Prop :=
 
  
            
-
-
