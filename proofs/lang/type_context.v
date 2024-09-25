@@ -54,6 +54,24 @@ match t1, t2 with
 | qty q1 t1, qty q2 t2 => if eq_qual q1 q2 then eq_pty t1 t2 else false 
 end.
 
+Scheme pty_Ind := Induction for pty Sort Prop
+ with ty_Ind := Induction for ty Sort Prop.
+
+Combined Scheme pty_ty_Ind from pty_Ind, ty_Ind. 
+
+(*Section pty_pred.
+Variable Ppty : pty -> Prop.
+Variable Pty : ty -> Prop.
+Variable Bpty : Ppty bool_ty.
+Variable 
+Fixpoint pty_Ind (p : pty) : (Ppty p) :=
+match p with 
+| bool_ty => Bpty
+| pair_ty t1 t2 => (Pty t1) /\ (Pty t2)
+| arrow_ty t1 t2 => (Pty t1) /\ (Pty t2)
+end.
+End pty_pred.*)
+
 (* Map from string to type *)
 (* Here ty (representing type is the value type) and string is the key *)
 Definition typing_context := list (string * ty). 

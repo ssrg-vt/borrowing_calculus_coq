@@ -87,6 +87,10 @@ Proof.
 move=> q. by case: q=> //=.
 Qed.
 
+(*Lemma eq_pty_refl : (forall p, eq_pty p p) /\ (forall p, eq_ty p p).
+Proof.
+apply pty_ty_Ind.*)
+
 Lemma eq_pty_refl : forall p (h : forall t, eq_ty t t),
 eq_pty p p.
 Proof.
