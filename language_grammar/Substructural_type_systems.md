@@ -1,6 +1,6 @@
 # Substructural Type Systems:
 - Substructural type system augment standard type abstraction mechanisms with the ability to control the number and order of uses of a data structure or operation. 
-- It is particularly useful for constaining interfaces that provide access to system resources such as files, locks and memory as these resources undergo a series of changes of state throughout its lifetime. For example, a memory my be allocated or deallocated, files may be open or close etc. Substructural type systems provide sound static mechanism for keeping track of just these sorts of state changes and preventing operations on objects in an invalid state.
+- It is particularly useful for constraining interfaces that provide access to system resources such as files, locks and memory as these resources undergo a series of changes of state throughout its lifetime. For example, a memory my be allocated or deallocated, files may be open or close etc. Substructural type systems provide sound static mechanism for keeping track of just these sorts of state changes and preventing operations on objects in an invalid state.
 
 ## Linear Type System:
 - Linear type systems ensure that objects are used exactly once, so it is completely obvious that after the use of an object, it may be safely deallocated. 
