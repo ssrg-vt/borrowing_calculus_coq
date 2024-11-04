@@ -8,10 +8,9 @@
 -arg "-w +deprecated-instance-without-locality"
 -arg "-w -hiding-delimiting-key"
 
--R proofs eBPF_coq
+-R proofs
 
-proofs/lang/type_context.v
-proofs/lang/expr.v
-proofs/lang/type_context_facts.v
-proofs/lang/typing_proofs_nt.v
-proofs/lang/typing_proofs.v
+proofs/type.v
+proofs/expr.v
+proofs/typing_proofs.v
+
