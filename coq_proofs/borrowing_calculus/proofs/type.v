@@ -128,3 +128,35 @@ match t2 with
 | nil => t1
 | h :: t =>  append_context (extend_context t1 (fst h) (snd h)) t
 end.
+
+
+Fixpoint append_only_lin (Gamma : typing_context) (xs : list ident) (ts : list type) : typing_context :=
+match xs with 
+| nil => nil
+| x :: xs => match ts with 
+             | nil => nil
+             | t :: ts => append_only_lin (extend_context Gamma x (Lin, t)) xs ts
+             end 
+end. 
+
+Fixpoint append_only_bor (Gamma : typing_context) (xs : list ident) (ts : list type) : typing_context :=
+match xs with 
+| nil => nil
+| x :: xs => match ts with 
+             | nil => nil
+             | t :: ts => append_only_bor (extend_context Gamma x (Bor, t)) xs ts
+             end 
+end. 
+
+Definition lift_quan (q : quantity) : quantity :=
+match q with
+| Bor => Un
+| Lin => Lin 
+| Un => Un
+end.
+
+Fixpoint filer_context (acc : typing_context) (Gamma : typing_context) (q : quantity) : typing_context :=
+match Gamma with 
+| nil => nil
+| x :: xs => if (eq_quantity (fst(snd x)) q) then append_context acc (x :: nil) else filer_context acc xs q
+end. 

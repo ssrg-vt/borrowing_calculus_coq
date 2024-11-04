@@ -8,7 +8,7 @@
 -arg "-w +deprecated-instance-without-locality"
 -arg "-w -hiding-delimiting-key"
 
--R proofs
+-R proofs borrowing_calculus_proofs
 
 proofs/type.v
 proofs/expr.v
