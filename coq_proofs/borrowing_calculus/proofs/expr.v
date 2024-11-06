@@ -29,9 +29,13 @@ Inductive type_expr : typing_context -> expr -> (quantity * type) -> typing_cont
                       List.In q (Lin :: Bor :: nil) ->
                       type_expr (extend_context Gamma x (Un, t)) (Var x) (q, t) (extend_context Gamma x (Un, t))
 (* borrow should be only allowed in the region it is suppose to and after that it should be restored to its quantity *)
+(* Question: about the variables to be borrowed *)
 | Ty_borrow : forall Gamma xs ts e q t Gamma', 
               type_expr (append_only_bor Gamma xs ts) e (lift_quan q, t) (append_only_bor Gamma' xs ts) ->
               type_expr (append_only_lin Gamma xs ts) (Borrow xs e) (q, t) (append_only_lin Gamma' xs ts).
+(*| Ty_abs_un : forall Gamma xs e,
+              type_expr Gamma e 
+              type_expr Gamma (Abs xs e).*)
 
 
 
